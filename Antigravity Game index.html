@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>深淵秘境：像素地牢 (Abyss Pixel Dungeon)</title>
+    <meta name="description" content="復古街機像素風格 2D 俯視角地牢冒險遊戲。探索神秘房間、擊退魔物、解鎖寶箱、升級技能並挑戰深淵骨王！">
+    <!-- Retro Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700;900&family=Press+Start+2P&family=Share+Tech+Mono&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+    <!-- Arcade Cabinet Container -->
+    <div id="arcade-container">
+
+        <!-- Top Global Header / Toolbar -->
+        <header id="arcade-header">
+            <div class="header-left">
+                <span class="game-logo">⚔️ 深淵秘境 <span class="sub-logo">ABYSS DUNGEON</span></span>
+            </div>
+            <div class="header-controls">
+                <button id="btn-toggle-sound" class="arcade-btn" title="切換音效 (M)">🔊 音效: 開</button>
+                <button id="btn-toggle-music" class="arcade-btn" title="切換背景音樂 (B)">🎵 音樂: 開</button>
+                <button id="btn-toggle-crt" class="arcade-btn active" title="切換復古 CRT 濾鏡 (C)">📺 CRT: 開</button>
+                <button id="btn-help" class="arcade-btn" title="查看操作說明 (H)">❓ 說明</button>
+            </div>
+        </header>
+
+        <!-- Main Game Screen Area -->
+        <main id="game-wrapper">
+            <!-- HTML5 Canvas for Pixel Graphics -->
+            <canvas id="game-canvas"></canvas>
+
+            <!-- CRT Filter Overlay -->
+            <div id="crt-overlay" class="crt-scanlines"></div>
+
+            <!-- In-Game HUD Layer -->
+            <div id="hud-layer">
+                <!-- Top Left: Hero Status -->
+                <div class="hud-panel hud-status">
+                    <div class="avatar-box">
+                        <div id="hero-avatar" class="pixel-avatar"></div>
+                        <div class="hero-level-badge">Lv.<span id="hud-level">1</span></div>
+                    </div>
+                    <div class="bars-container">
+                        <!-- Health Bar -->
+                        <div class="bar-row">
+                            <span class="bar-label">HP</span>
+                            <div class="bar-track hp-track">
+                                <div id="hud-hp-bar" class="bar-fill hp-fill" style="width: 100%;"></div>
+                                <span id="hud-hp-text" class="bar-text">100 / 100</span>
+                            </div>
+                        </div>
+                        <!-- Mana Bar -->
+                        <div class="bar-row">
+                            <span class="bar-label">MP</span>
+                            <div class="bar-track mp-track">
+                                <div id="hud-mp-bar" class="bar-fill mp-fill" style="width: 100%;"></div>
+                                <span id="hud-mp-text" class="bar-text">60 / 60</span>
+                            </div>
+                        </div>
+                        <!-- EXP Bar -->
+                        <div class="bar-row">
+                            <span class="bar-label">XP</span>
+                            <div class="bar-track xp-track">
+                                <div id="hud-xp-bar" class="bar-fill xp-fill" style="width: 0%;"></div>
+                                <span id="hud-xp-text" class="bar-text">0 / 100</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Top Center: Floor Info & Boss HP (when active) -->
+                <div class="hud-center">
+                    <div class="floor-badge">
+                        <span id="hud-floor-title">第 1 層：幽暗地牢</span>
+                    </div>
+                    <!-- Boss Health Bar -->
+                    <div id="boss-hp-container" class="boss-bar-wrap hidden">
+                        <div class="boss-name-tag">💀 <span id="boss-name">深淵骨王 · 莫加斯</span> 💀</div>
+                        <div class="boss-bar-track">
+                            <div id="boss-hp-bar" class="boss-bar-fill" style="width: 100%;"></div>
+                            <span id="boss-hp-text" class="boss-bar-text">1500 / 1500</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Top Right: Minimap & Inventory Tokens -->
+                <div class="hud-panel hud-meta">
+                    <div class="token-list">
+                        <div class="token-item" title="金幣 (可用於地牢神龕)">
+                            <span class="token-icon">🪙</span>
+                            <span id="hud-coins" class="token-value">0</span>
+                        </div>
+                        <div class="token-item" title="金鑰匙 (開啟寶箱與首領大門)">
+                            <span class="token-icon">🗝️</span>
+                            <span id="hud-keys" class="token-value">0</span>
+                        </div>
+                        <div class="token-item" title="討伐數">
+                            <span class="token-icon">⚔️</span>
+                            <span id="hud-kills" class="token-value">0</span>
+                        </div>
+                    </div>
+                    <div class="minimap-container">
+                        <canvas id="minimap-canvas" width="110" height="110"></canvas>
+                        <span class="minimap-label">MINIMAP</span>
+                    </div>
+                </div>
+
+                <!-- Bottom Right: Action Skills Hotbar -->
+                <div class="hud-skills">
+                    <div class="skill-slot active" id="skill-melee" title="近戰劍擊 [左鍵 / 空格]">
+                        <span class="skill-key">L-Click</span>
+                        <div class="skill-icon">🗡️</div>
+                        <span class="skill-name">斬擊</span>
+                    </div>
+                    <div class="skill-slot" id="skill-magic" title="火球魔法 [右鍵 / E 鍵]">
+                        <span class="skill-key">E / R-Click</span>
+                        <div class="skill-icon">🔥</div>
+                        <span class="skill-name">火球術 (15MP)</span>
+                        <div id="cooldown-magic" class="skill-cooldown"></div>
+                    </div>
+                    <div class="skill-slot" id="skill-dash" title="衝刺迴避 [Shift / 空格]">
+                        <span class="skill-key">Shift</span>
+                        <div class="skill-icon">💨</div>
+                        <span class="skill-name">閃避</span>
+                        <div id="cooldown-dash" class="skill-cooldown"></div>
+                    </div>
+                </div>
+
+                <!-- Touch / Mobile Controls (auto-shown on touch devices) -->
+                <div id="touch-controls" class="touch-layer hidden">
+                    <div id="virtual-joystick" class="joystick-base">
+                        <div id="joystick-thumb" class="joystick-thumb"></div>
+                    </div>
+                    <div class="virtual-action-buttons">
+                        <button id="btn-touch-dash" class="v-btn v-btn-dash">💨 閃避</button>
+                        <button id="btn-touch-magic" class="v-btn v-btn-magic">🔥 火球</button>
+                        <button id="btn-touch-attack" class="v-btn v-btn-attack">🗡️ 斬擊</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Modals and Overlays -->
+
+            <!-- Start Screen Modal -->
+            <div id="modal-start" class="game-modal active">
+                <div class="modal-card">
+                    <div class="pixel-skull-icon">💀</div>
+                    <h1 class="modal-title">深淵秘境<br><span class="modal-title-sub">ABYSS PIXEL DUNGEON</span></h1>
+                    <p class="modal-desc">
+                        勇敢的騎士，你踏入了被詛咒的地下秘境。<br>
+                        消滅遊蕩魔物、破壞木箱瓦罐、尋找鑰匙解開寶箱。<br>
+                        收集靈魂碎片升級天賦，擊敗深淵骨王！
+                    </p>
+                    <div class="controls-preview">
+                        <div class="ctrl-row"><span>🎮 移動：</span><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> 或 方向鍵
+                        </div>
+                        <div class="ctrl-row"><span>🗡️ 普通攻擊：</span>滑鼠左鍵 或 <kbd>空格</kbd></div>
+                        <div class="ctrl-row"><span>🔥 爆炎火球：</span>滑鼠右鍵 或 <kbd>E</kbd> (耗魔)</div>
+                        <div class="ctrl-row"><span>💨 衝刺翻滾：</span><kbd>Shift</kbd> 或 <kbd>空白衝刺</kbd></div>
+                        <div class="ctrl-row"><span>✨ 互動/神龕：</span>靠近自動互動 / <kbd>F</kbd></div>
+                    </div>
+                    <button id="btn-start-game" class="modal-primary-btn glow-anim">⚔️ 踏入秘境 (START)</button>
+                </div>
+            </div>
+
+            <!-- Level Up / Perk Selection Modal -->
+            <div id="modal-levelup" class="game-modal">
+                <div class="modal-card modal-card-wide">
+                    <div class="level-up-tag">✦ LEVEL UP ✦</div>
+                    <h2 class="modal-title-gold">靈魂恩賜：選擇一項天賦提升</h2>
+                    <p class="modal-sub">你的靈魂在深淵中變得更加強韌，請選擇一項祝福：</p>
+                    <div id="perks-container" class="perks-grid">
+                        <!-- Dynamically populated 3 cards -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Game Over Modal -->
+            <div id="modal-gameover" class="game-modal">
+                <div class="modal-card">
+                    <div class="gameover-title">💀 你已陣亡 💀</div>
+                    <p class="modal-desc">你的靈魂被深淵吞噬，長眠於這座無盡的地牢之中...</p>
+                    <div class="run-stats">
+                        <div class="stat-item">到達層數: <span id="stat-floor">1</span></div>
+                        <div class="stat-item">英雄等級: <span id="stat-level">1</span></div>
+                        <div class="stat-item">擊殺魔物: <span id="stat-kills">0</span></div>
+                        <div class="stat-item">收集金幣: <span id="stat-coins">0</span></div>
+                        <div class="stat-item">生存時間: <span id="stat-time">0:00</span></div>
+                    </div>
+                    <button id="btn-restart-game" class="modal-primary-btn glow-anim">🔄 重新挑戰</button>
+                </div>
+            </div>
+
+            <!-- Victory Modal -->
+            <div id="modal-victory" class="game-modal">
+                <div class="modal-card">
+                    <div class="victory-title">🏆 傳奇凱旋 🏆</div>
+                    <p class="modal-desc">深淵骨王已被你徹底消滅，秘境的詛咒終於解除！你成為了榮耀的地牢傳奇！</p>
+                    <div class="run-stats">
+                        <div class="stat-item">總擊殺數: <span id="stat-v-kills">0</span></div>
+                        <div class="stat-item">金幣總額: <span id="stat-v-coins">0</span></div>
+                        <div class="stat-item">最終等級: <span id="stat-v-level">0</span></div>
+                        <div class="stat-item">通關時間: <span id="stat-v-time">0:00</span></div>
+                    </div>
+                    <button id="btn-victory-restart" class="modal-primary-btn glow-anim">👑 再戰一輪</button>
+                </div>
+            </div>
+
+            <!-- Help / Instructions Modal -->
+            <div id="modal-help" class="game-modal">
+                <div class="modal-card">
+                    <h2 class="modal-title-sm">📜 冒險者生存手冊</h2>
+                    <div class="help-content">
+                        <p><strong>🎯 核心目標：</strong>探索地牢房間，消滅所有房間魔物解除封印。找到金色鑰匙開啟寶箱與深淵首領之門。</p>
+                        <p><strong>❤️ 生命與魔力：</strong>MP 會隨時間自然回復；擊碎瓦罐與木箱有機率獲得愛心回血與金幣！</p>
+                        <p><strong>⛲ 祈願神龕：</strong>靠近閃爍神秘藍光的神龕可花費金幣進行全回復或獲得強力祝福！</p>
+                        <p><strong>⚠️ 地牢陷阱：</strong>小心地上的尖刺陷阱，在尖刺伸出前會有咔嗒聲與輕微抖動提示！</p>
+                    </div>
+                    <button id="btn-close-help" class="modal-primary-btn">返回地牢</button>
+                </div>
+            </div>
+
+        </main>
+
+        <!-- Bottom Footer Bar -->
+        <footer id="arcade-footer">
+            <div class="footer-tip">💡 提示：按 <kbd>Shift</kbd> 衝刺能免疫短暫傷害，利用走位聚怪後施放火球術！</div>
+            <div class="footer-credit">Retro Pixel Dungeon Engine v1.0 • Built with Canvas & Web Audio</div>
+        </footer>
+
+    </div>
+
+    <!-- Game Scripts -->
+    <script src="audio.js"></script>
+    <script src="sprites.js"></script>
+    <script src="dungeon.js"></script>
+    <script src="entities.js"></script>
+    <script src="game.js"></script>
+</body>
+
+</html>
